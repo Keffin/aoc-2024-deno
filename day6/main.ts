@@ -18,7 +18,7 @@ enum Direction {
 
 function findStartingPoint(
   grid: Position[][],
-  char: string
+  char: string,
 ): { x: number; y: number } {
   for (let x = 0; x < grid.length; x++) {
     for (let y = 0; y < grid[x].length; y++) {
@@ -33,7 +33,7 @@ function findStartingPoint(
 function getNextPosition(
   grid: Position[][],
   current: { x: number; y: number },
-  dir: Direction
+  dir: Direction,
 ) {
   const { x, y } = current;
   let newX = x;
@@ -77,13 +77,18 @@ function turnRight(dir: Direction): Direction {
 function moveCharacter(
   grid: Position[][],
   current: { x: number; y: number },
-  dir: Direction
+  dir: Direction,
+  part: string,
 ): { x: number; y: number; dir: Direction; outOfBounds: boolean } {
   let next = getNextPosition(grid, current, dir);
 
   while (grid[next.x][next.y].value === OBSTRUCTION) {
     dir = turnRight(dir);
-    next = moveCharacter(grid, current, dir);
+    if (part === "part1") {
+      next = moveCharacter(grid, current, dir, part);
+    } else {
+      next = getNextPosition(grid, current, dir);
+    }
   }
 
   grid[next.x][next.y].visited = true;
@@ -110,7 +115,7 @@ export function part1() {
   while (itMov) {
     // move character
 
-    const moved = moveCharacter(myGrid, current, direction);
+    const moved = moveCharacter(myGrid, current, direction, "part1");
     current = { x: moved.x, y: moved.y };
     direction = moved.dir;
     if (moved.outOfBounds) {
@@ -129,4 +134,66 @@ export function part1() {
   return count;
 }
 
-console.log(part1());
+function simulateObstruction(
+  grid: Position[][],
+  obstruction: { x: number; y: number },
+): boolean {
+  const ori = grid[obstruction.x][obstruction.y].value;
+  grid[obstruction.x][obstruction.y].value = OBSTRUCTION;
+
+  const { x, y } = findStartingPoint(grid, "^");
+
+  let current = { x, y };
+  grid[x][y].visited = true;
+  let dir = Direction.UP;
+  const visited = new Set<string>();
+
+  while (true) {
+    const moved = moveCharacter(grid, current, dir, "part2");
+    current = { x: moved.x, y: moved.y };
+    dir = moved.dir;
+
+    const currentState = `${current.x},${current.y},${dir}`;
+    if (moved.outOfBounds) {
+      grid[obstruction.x][obstruction.y].value = ori;
+      return false;
+    }
+    if (visited.has(currentState)) {
+      grid[obstruction.x][obstruction.y].value = ori;
+      return true;
+    } else {
+      visited.add(currentState);
+    }
+  }
+}
+
+export function part2(): number {
+  const rows = lines.trim().split("\n");
+  const grid: string[][] = rows.map((row) => row.split(""));
+  const myGrid: Position[][] = grid.map((row, x) => {
+    return row.map((char, y) => ({
+      visited: false,
+      value: char,
+      x,
+      y,
+    }));
+  });
+
+  let count = 0;
+
+  const startX = findStartingPoint(myGrid, "^").x;
+  const startY = findStartingPoint(myGrid, "^").y;
+  for (let x = 0; x < myGrid.length; x++) {
+    for (let y = 0; y < myGrid[x].length; y++) {
+      if (myGrid[x][y].value !== "." || (startX === x && startY === y)) {
+        continue;
+      }
+
+      if (simulateObstruction(myGrid, { x, y })) {
+        count++;
+      }
+    }
+  }
+
+  return count;
+}
